@@ -12,56 +12,197 @@ require "~/lib_k247/K247_basic"
 
 class K247_qgcm_data
 
-attr_reader :p, :q
-# from monit.nc
-attr_reader :ddtkeoc, :ddtpeoc, :emfroc, :et2moc, :etamoc, \
-            :kealoc, :pkenoc
-# parameters ( from input_parameters.m )
-#   I cannot avoid use variable names directoly. @2015-09-01
-attr_reader :fnot, :beta, :dxo, :dto, :rhooc, :cpoc, \
-            :l_spl, :c1_spl
-attr_reader :gpoc, :cphsoc, :rdefoc, :tabsoc, :hoc
+  attr_reader :nc_fn, :p, :q
+  # set by init_coord (for convenience)
+  #   ex. @xpcor = @p.coord("xp"); @xp = @xpcor.val; @nxp = @xp.length
+  attr_reader :xp, :nxp, :xpcor, :yp, :nyp, :ypcor, :z, :nz, :zcor, \
+              :zi, :nzi, :zicor, :t, :nt, :tcor, :tm, :ntm, :tmcor
+  # from monit.nc
+  attr_reader :ddtkeoc, :ddtpeoc, :emfroc, :et2moc, :etamoc, \
+              :kealoc, :pkenoc, \
+              :keocavg, :peocavg, :teocavg
+  # parameters ( from input_parameters.m )
+  #   I cannot avoid using variable names directly. @2015-09-01
+  attr_reader :fnot, :beta, :dxo, :dto, :rhooc, :cpoc, \
+              :l_spl, :c1_spl
+  attr_reader :gpoc, :cphsoc, :rdefoc, :ah2oc, :ah4oc, :tabsoc, :hoc
+  # from init_etc
+  attr_reader :gcname, :cname
 
-
-def initialize( nc_fn )
-# nc_fn: ( return of K247_qgcm_integrate_outdata ) 
-  @p = GPhys::IO.open( nc_fn, "p" )
-  @q = nil
-  init_monit( nc_fn )
+# 2015-08 or 09: create
+# 2015-09-10: modify argument ( nc_fn -> input: fname or casename)
+## Todo
+#   - consider filenames and directory structures
+#   - consider necessary components of initialize
+#
+# arguments: argv -- casename or filename ( return of self.prep_integrate_outdata )
+# return   : none
+# action   : set instance variables
+def initialize( argv )
+# nc_fn: ( return of self.prep_integrate_outdata )
+  @nc_fn = init_fname( argv )
+  @p = GPhys::IO.open( @nc_fn, "p" )
+  @q = nil # set by calc_q
 # initialize parameters ( from input_parameters.m )
-  init_inparam_zdim( nc_fn )
-  init_inparam_nodim( nc_fn )
+  init_inparam_zdim
+  init_inparam_nodim
+# initialize data in monit.nc ()
+  init_monit
+  init_coord
+  init_etc
 end # initialize
+
+
+# methods index
+## - instance methods for check 
+## - instance methods for initialzie
+## - class methods for preparation ( integrate outdata_*/* )
+
+
+
+## - instance methods for check
+# contents ( 2015-09-04 )
+##  chk_energy_avg_stdout( input=nil)
+##  chk_energy_avg_ncout( input=nil)
+  
+  # 2015-09-09
+  # Check Area averaged energy
+  # ToDo
+  #   add zonally & meridionally averaged energies
+  def chk_energy_avg_stdout( input=nil )
+    puts "Check Area averaged energy (from monit.nc)"
+    puts "  case: #{@gcname}-#{@cname}"
+    ke = @keocavg
+    pe = @peocavg
+    te = @teocavg
+
+    puts "  te change( te[-1]/te[0] )   : #{ te.val[-1] / te.val[0] }"
+    puts "     check ( te.min/te.max )  : #{ te.val.min / te.val.max }"
+    
+    puts "  pe change( pe[-1]/pe[0] )   : #{ pe.val[-1] / pe.val[0] }"
+
+    puts "  ke change"
+    puts "    upper ( ke[0,-1]/ke[0,0] ): #{ ke.val[0,-1] / ke.val[0,0] }"
+    if ke.val[1,0] > 0.0
+      puts "    lower ( ke[1,-1]/ke[1,0] ): #{ ke.val[1,-1] / ke.val[1,0] }"
+    else
+      puts "    lower                     : initially at rest"
+    end
+    puts "    lower / upper"
+    puts "      inital                  : #{ ke.val[1,0] / ke.val[0,0] }"
+    puts "      final                   : #{ ke.val[1,-1] / ke.val[0,-1] }"
+  end # def chk_energy_avg_stdout( input=nil)
+
+  # 2015-09-09
+  # Output Area averaged energy to NetCDF file
+  # ToDo
+  #   add zonally & meridionally averaged energies
+  def chk_energy_avg_ncout( input=nil)
+    out_fname = "energy_check.nc" 
+    puts "Output area averaged energy to #{out_fname}"
+    puts "  case: #{@gcname}-#{@cname}"
+    ke = @keocavg
+    pe = @peocavg
+    te = @teocavg
+    nc_fu = NetCDF.create( out_fname )
+      GPhys::NetCDF_IO.write( nc_fu, te )
+      sum_ke = 0
+      for k in 0..@nz-1
+        sum_ke = sum_ke + ke.cut("z"=>@z[k])
+        GPhys::NetCDF_IO.write( nc_fu, \
+               ke.cut("z"=>@z[k]).chg_gphys_k247( \
+                {"name"=>"keocavg#{k}"}) )
+      end
+      sum_pe = 0
+      for k in 0..@nzi-1
+        sum_pe = sum_pe + pe.cut("zi"=>@zi[k])
+        GPhys::NetCDF_IO.write( nc_fu, \
+               pe.cut("zi"=>@zi[k]).chg_gphys_k247( \
+                {"name"=>"peocavg#{k}"}) )
+      end
+      GPhys::NetCDF_IO.write( nc_fu, \
+              sum_ke.chg_gphys_k247({"name"=>"ke_sum"}) )
+      GPhys::NetCDF_IO.write( nc_fu, \
+              sum_pe.chg_gphys_k247({"name"=>"pe_sum"}) )
+    nc_fu.close
+  end # def chk_energy_avg_ncout( input=nil)
+
+
+
+## - instance methods for initialzie
+# contents ( 2015-09-04 )
+##
+##  init_fname
+##  init_monit
+##  init_inparam_nodim
+##  init_inparam_zdim
+##  init_coord
+##  init_etc
+##
+
+# Create: 2015-09-10
+#
+def init_fname( input=nil )
+
+#  p "Test init_fname" #=> ?? Error ?? 
+
+  if input == nil
+    puts "init_fname: please set casename or filename (argument is nil)"
+  else
+    if input.include?(".nc")
+      nc_fn = input
+    else # casename
+      nc_fn = ( self.class.prep_set_filenames( input ) )["out_nf"]
+    end
+    if File.exist?( nc_fn )
+      puts "init_fname: NetCDF file #{nc_fn}"
+      return nc_fn
+    else
+      puts "init_fname: No Such File #{nc_fn}"
+      exit -1
+    end
+  end
+end
 
 # Create: 2015-09-01
 ## ToDo : select variables
-def init_monit( nc_fn )
-  @ddtkeoc = GPhys::IO.open( nc_fn, "ddtkeoc")
-  @ddtpeoc = GPhys::IO.open( nc_fn, "ddtpeoc")
-  @emfroc = GPhys::IO.open( nc_fn, "emfroc")
-  @ermaso = GPhys::IO.open( nc_fn, "ermaso")
-  @et2moc = GPhys::IO.open( nc_fn, "et2moc")
-  @etamoc = GPhys::IO.open( nc_fn, "etamoc")
-  @kealoc = GPhys::IO.open( nc_fn, "kealoc")
-  @pkenoc = GPhys::IO.open( nc_fn, "pkenoc")
-#  @oc = GPhys::IO.open( nc_fn, "oc")
-end # def init_monit( nc_fn )
+def init_monit
+  @ddtkeoc = GPhys::IO.open( @nc_fn, "ddtkeoc")
+  @ddtpeoc = GPhys::IO.open( @nc_fn, "ddtpeoc")
+  @emfroc = GPhys::IO.open( @nc_fn, "emfroc")
+  @ermaso = GPhys::IO.open( @nc_fn, "ermaso")
+  @et2moc = GPhys::IO.open( @nc_fn, "et2moc")
+  # calc potential energy
+     #tmp = 0.5 * @rhooc * @gpoc *@et2moc # !Caution! "units" become wrong ( kg2 m-3 s-2 )
+     @peocavg = ( @rhooc * @gpoc *@et2moc / 2.0 ).chg_gphys_k247( 
+        {"name"=>"peocavg","long_name"=>"Averaged potential energy"} )
+  @etamoc = GPhys::IO.open( @nc_fn, "etamoc")
+  @kealoc = ( GPhys::IO.open( @nc_fn, "kealoc") ).chg_gphys_k247( {"units"=>"kg.s-2"})
+    @keocavg = @kealoc
+  #@pkenoc = GPhys::IO.open( @nc_fn, "pkenoc")
+  # set warning
+    @pkenoc = ( GPhys::IO.open( @nc_fn, "pkenoc") ).chg_gphys_k247( \
+        {"comment_by_k247"=>"this data are considerted to be broken"} )
+#  @oc = GPhys::IO.open( @nc_fn, "oc")
+end # def init_monit( @nc_fn )
 
 
 # Create: 2015-09-01
 ## ToDo : sophisticate
-def init_inparam_zdim( nc_fn )
-  @gpoc = GPhys::IO.open( nc_fn, "gpoc" )
-  @cphsoc = GPhys::IO.open( nc_fn, "cphsoc" )
-  @rdefoc = GPhys::IO.open( nc_fn, "rdefoc" )
-  @tabsoc = GPhys::IO.open( nc_fn, "tabsoc" )
-  @hoc = GPhys::IO.open( nc_fn, "hoc" )
-end # def set_inparam_zdim( nc_fn )
+def init_inparam_zdim
+  @gpoc = GPhys::IO.open( @nc_fn, "gpoc" )
+  @cphsoc = GPhys::IO.open( @nc_fn, "cphsoc" )
+  @rdefoc = GPhys::IO.open( @nc_fn, "rdefoc" )
+  @ah2oc = GPhys::IO.open( @nc_fn, "ah2oc" )
+  @ah4oc = GPhys::IO.open( @nc_fn, "ah4oc" )
+  @tabsoc = GPhys::IO.open( @nc_fn, "tabsoc" )
+  @hoc = GPhys::IO.open( @nc_fn, "hoc" )
+end # def set_inparam_zdim( @nc_fn )
 
 
 ## Create: 2015-09-01
-def init_inparam_nodim( nc_fn )
-  nc_fu = NetCDF.open( nc_fn )
+def init_inparam_nodim
+  nc_fu = NetCDF.open( @nc_fn )
   anames = nc_fu.att_names
   ## !caution! 
   anames_not_param = ["history", "original"]
@@ -77,66 +218,235 @@ def init_inparam_nodim( nc_fn )
   nc_fu.close
 end # set_inparam_nodim
 
+# 2015-09-04
+def init_coord
+  @xpcor = @p.coord("xp"); @xp = @xpcor.val; @nxp = @xp.length
+  @ypcor = @p.coord("yp"); @yp = @ypcor.val; @nyp = @yp.length
+  @zcor = @p.coord("z"); @z = @zcor.val; @nz = @z.length
+  @zicor = @et2moc.coord("zi"); @zi = @zicor.val; @nzi = @zi.length
+  @tcor = @p.coord("time"); @t = @tcor.val; @nt = @t.length
+  @tmcor = @et2moc.coord("time_monitor"); @tm = @tmcor.val; @ntm = @tm.length
+end # def init_coord
 
 
-end # class K247_qgcm_data
+# 2015-09-04
+def init_etc
+  init_etc_teocavg
+  init_etc_casename
+end # def init_etc
+
+  # 2015-09-04
+  # ToDo
+  #   - use iterater
+  #   - sum up peoc for 3 or more layer model
+  def init_etc_teocavg
+    total_ke = @keocavg.cut( "z"=>@z[0] )
+    for k in 1..@nz-1
+      total_ke = total_ke + @keocavg.cut( "z"=>@z[k])
+    end
+    @teocavg = ( @peocavg + total_ke ).chg_gphys_k247( \
+                  {"name"=>"teocavg", "long_name"=>"Averaged total energy"})
+  end # def init_etc_teocavg
+
+  # 2015-09-09
+  # ToDo: assumption of filename as ".../outdata_YY/q-gcm_XX_YY_out.nc"
+  def init_etc_casename
+    tmp = @nc_fn.split("q-gcm_")[1] # XX_YY_out.nc
+    tmp2 = tmp.split("_out")[0] # XX_YY
+    @gcname, @cname = tmp2.split("_")
+  end # def init_etc_casename
 
 
-=begin
-## how to use: K247_qgcm_data
-nc_fn = "./outdata_tmp/q-gcm_29_tmp_out.nc"
-tmp = K247_qgcm_data.new( nc_fn )
 
-vnames = tmp.instance_variables
-vnames.each do | vn |
-  p tmp.instance_variable_get( vn )
-#  p tmp.instance_variable_get( vn ).get_att("long_name")
-end
-=end
-
+## - class methods for preparation ( integrate outdata_*/* )
+##  contents@2015-09-02
+##   - self.prep_integrate_outdata( cname )
+##   - self.prep_set_filename( cname )
+##   - self.prep_write_monit( input )
+##   - self.prep_write_inpara( input )
+##     -- self.prep_read_inpara( input )
+##          !Caution! too long & complicate!! @2015-09-10
+##   - self.prep_modify_grid( apts )
 
 
+# Create: 2015-08 or 09
+# modify: 2015-09-10 ( argument & import prep_set_filenames )
+#
+# ToDo: treat large datasize
+#
+# argument: cname -- casename ( String, donot include "_" )
+# action  : read outdata_YY/??? & write outdata_YY/qgcm_XX_YY_out.nc
+# return  : none
+def self.prep_integrate_outdata( cname )
+
+  fnames = self.prep_set_filenames( cname )
+    out_nf = fnames["out_nf"]
+    ocpo_nf = fnames["dname"] + "ocpo.nc"
+    monit_nf = fnames["dname"] + "monit.nc"
+    inpara_nf = fnames["dname"] + "input_parameters.m"
+    out_flag = fnames["out_flag"]
+
+  if ( File.exist?(ocpo_nf) ) && ( ! File.exist?(out_nf) ) then
+    puts "Create #{out_nf}" if out_flag == true
+    out_fu = NetCDF.create( out_nf ) if out_flag == true
+    vnames = GPhys::IO.var_names( ocpo_nf )
+    if (vnames.include?('p') == true) 
+      gp_p = GPhys::IO.open( ocpo_nf, 'p')
+        apts = gp_p.get_axparts_k247()
+        self.prep_modify_grid( apts )
+        self.prep_check_size( apts ) # 2015-09-11 add
+        pgrid_new = gp_p.restore_grid_k247( apts )
+        gp_p2 = GPhys.new( pgrid_new, gp_p.data)
+         
+      # 2015-09-11: change for huge data
+        #GPhys::NetCDF_IO.write( out_fu, gp_p2 ) if out_flag == true
+        # !Error! for 960x480x2x731 @2015-09-11
+        #   ?? ../src_test29/tmp_hugewrite.rb is no problem with same code
+        GPhys::NetCDF_IO.each_along_dims_write( gp_p2, out_fu, -1) \
+          do |sub| [sub] end if out_flag == true
+    else
+      puts "\n\n  !!!ERROR!!! #{ocpo_nf} does not have p!\n\n"
+      exit -1
+    end # if (vnames.include?('p') == true) 
+
+      self.prep_write_monit( { "out_fu"=>out_fu, "monit_fn"=>monit_nf } ) if out_flag == true
+      out_fu.put_att("original", ocpo_nf) if out_flag == true
+      self.prep_write_inpara( { "out_fu"=>out_fu, "ocpo_fn"=>ocpo_nf, \
+                                "inpara_fn"=>inpara_nf} ) if out_flag == true
+    out_fu.close if out_flag == true
+  else # if ( File.exist?(ocpo_nf) ) then 
+    puts "  !!!ERROR!!! #{ocpo_nf} does not exist!" if ( ! File.exist?(ocpo_nf) )
+    puts "  !!!ERROR!!! #{out_nf} already exists!" if ( File.exist?(out_nf) )
+  end # if ( File.exist?(ocpo_nf) ) then 
+
+end # def self.prep_integrate_outdata
+
+  # 2015-09-11
+  # argument : apts -- hash ( return of qg_p.get_axparts_k247() )
+  # action   : anounce alart
+  def self.prep_check_size( apts )
+    size_criterion = 960 * 960 * 2 * 36
+    nxp   = apts[  'xp']['val'].length
+    nyp   = apts[  'yp']['val'].length
+    nz    = apts[   'z']['val'].length
+    ntime = apts['time']['val'].length
+    current_size = nxp * nyp * nz * ntime
+
+    puts "\n  INFO: Writing Huge Data ( please wait)\n" \
+      if current_size >= size_criterion 
+  end
+
+# 2015-09-04
+#   copy & modify from k247_integrate_qgcm.rb
+# ToDo
+##  - relax the assumption for file & dirname
+##    -- risky keyword "src_test"
+# argument: cname     ( string from stdin )
+# return  : filenames ( hash )
+def self.prep_set_filenames( cname )
+  
+  fnames = Hash.new
+  if cname == nil
+    fnames["dname"] = "./outdata/"
+    fnames["out_nf"] = fnames["dname"] + "q-gcm_tmp_out.nc"
+  else
+    fnames["dname"] = "./outdata_" + cname + "/"
+    # gcname: greater casename ( src_testXX )
+      full_path = File::expand_path( fnames["dname"] )
+      gcname = full_path.split("src_test")[1].split("/")[0]
+    fnames["out_nf"] = fnames["dname"] \
+          + "q-gcm_" + gcname + "_" + cname + "_out.nc"
+  end
+  fnames["out_flag"] = true # default, will be modified
+
+  return fnames
+end # def self.prep_set_filenames( cname )
 
 
+def self.prep_write_monit( input )
+  out_fu = input["out_fu"]
+  monit_nf = input[ "monit_fn" ]
+  monit_outv = [ 'ddtkeoc', 'ddtpeoc', 'emfroc', 'ermaso', \
+                 'et2moc', 'etamoc', 'kealoc', 'pkenoc']
+    mon_vzom = [ 'ddtpeoc', 'emfroc', 'ermaso', 'et2moc', 'etamoc']
+    mon_vzo  = [ 'ddtkeoc', 'kealoc']
+    mon_vz = mon_vzom + mon_vzo
+  
+  monit_outv.each do | vname |
+    gp_v = GPhys::IO.open( monit_nf, vname)
+      axes_parts = gp_v.get_axparts_k247
+      axes_parts["time"]["name"] = "time_monitor"
+          axes_parts["time"]["val"] *= 365.0
+          axes_parts["time"]["atts"]["units"] = "days"
+      axes_parts["zo"]["name"] = "z" if mon_vzo.include?( vname )
+      axes_parts["zom"]["name"] = "zi" if mon_vzom.include?( vname )
+        ## adjust vertical axis name with ocpo.nc
+      new_grid = gp_v.restore_grid_k247( axes_parts )
+      unless vname == "et2moc" # modify 2015-09-03
+        gp_v2 = GPhys.new( new_grid, gp_v.data)
+      else
+        gp_v2 = GPhys.new( new_grid, gp_v.chg_varray_k247( {"units"=>"m2"} ) )
+        puts "    !CAUTION! monit.nc@et2moc: change units to [W/m^2] -> [m2]"
+      end
+      GPhys::NetCDF_IO.write( out_fu, gp_v2 )
+  end # monit_outv.each do | vname |
+
+end # def self.prep_write_monit( input )
 
 
-
-
-
-## tmp method 
-def k247_qgcm_modify_grid( apts )
-  # apts: axes_parts ( hash, return of gphys_obj.get_axparts_k247 )
-
-# version A.0.0.1 in k247_integrate_qgcmout.rb @2015-08-29
-  puts "  ocpo.nc@p: replace X,Y Axis ( 0 at center)"
-    nxp = apts['xp']['val'].length
-    dx =  apts['xp']['val'][1] - apts['xp']['val'][0]
-    apts['xp']['val'] -= dx * ( nxp - 1 ).to_f / 2.0
-    nyp = apts['yp']['val'].length
-    dy =  apts['yp']['val'][1] - apts['yp']['val'][0]
-    apts['yp']['val'] -= dy * ( nyp - 1 ).to_f / 2.0
-  puts "  ocpo.nc@p: convert T Axis to [days]"
-    apts['time']['val'] *= 365.0
-    apts['time']['atts']['units'] = 'days'
-
-end
+# 2015-08-30
+#   wrapper of K247_qgcm_read_inpara
+#   arguments: out_fu:    outfile unit
+#              inpara_fn: filename of input paramters
+#              ocpo_fn:   filename of ocpo
+#              a
+def self.prep_write_inpara( input )
+  out_fu = input["out_fu"]
+  inpara_fn = input["inpara_fn"]
+  i_hash = self.prep_read_inpara( { "inp_fn"=>inpara_fn} )
+    i_val = i_hash["val"]; i_com = i_hash["comment"]
+    i_okeyno = i_hash["out_keyno"]; i_okeyzi = i_hash["out_keyzi"]
+    i_okeyz  = i_hash["out_keyz"]
+    i_okey   = i_okeyno[0..-1] + i_okeyzi[0..-1] + i_okeyz[0..-1]
+    i_ounit = i_hash["out_units"]
+  
+  ocpo_fn = input["ocpo_fn"] 
+  grid_z = GPhys::IO.open( ocpo_fn, 'z').grid_copy
+  grid_zi = GPhys::IO.open( ocpo_fn, 'zi').grid_copy
+  
+  i_okey.each do | oky |
+    if i_okeyz.include?(oky) || i_okeyzi.include?(oky)
+      attr_tmp = {"units"=>i_ounit[oky], "long_name"=>i_com[oky]}
+      gp_tmp = GPhys.new( grid_zi, VArray.new( i_val[oky], attr_tmp, oky ) ) if i_okeyzi.include?(oky)
+      gp_tmp = GPhys.new( grid_z, VArray.new( i_val[oky], attr_tmp, oky ) ) if i_okeyz.include?(oky)
+      GPhys::NetCDF_IO.write( out_fu, gp_tmp )
+    else
+      out_fu.put_att(oky, i_val[oky].to_s  + ":" \
+                    + i_ounit[oky] + ":" + i_com[oky] )
+    end # if i_okeyz.include?(oky) || i_okeyzi.include?(oky)
+  end # i_okey.each do | oky |
+  
+end # def self.prep_write_inpara( input )
 
 
   # Convert English for KUDPC
   # 2015-07-25 -- Create
-  #   read input_parameters.m
-  #   make hash inp_val{ "vname" => val}, inp_com = {"vname" => "comment"}
-  #  K247_20150725_qgcm_input_parmeters.rb
+  #   read input_parameters.m for integrate qgcm outdata
   # 2015-08-24 -- edit
   #  Comment: layered parameters are difficult to read.
-  # 
-  # argument: input -- hash
-  # return  : inp_val, inp_com -- hash
-  def K247_qgcm_read_inpara( input )
-    # ex. outdata_CASENAME/input_parameters.m
+  #
+  # ToDo: sophisticate (too long, over 100 lines)
+  #
+  # argument: input -- hash ( filename )
+  # return  : inp_hash{ "vname" => val}, inp_com = {"vname" => "comment"
+  #                     etc.. (for prep_write_inpara) }
+  def self.prep_read_inpara( input )
+
+    print "\n\n\n  #{self}.prep_read_inpara \n"
+    print "  !!WARNING!! too long and complicate to improve!!\n\n\n"
+    
     inp_fn = input[ "inp_fn" ]
     inp_fu = open( inp_fn, "r")
-      # line read ( preparation for layerd parameters )
       lnum = 0; inp_txt = Array.new; inp_txt2 = Array.new
       cini = 0; clen = 1 
       while line = inp_fu.gets
@@ -226,12 +536,13 @@ end
     inp_okeyno = [ "fnot", "beta", "dxo","dto", "rhooc", \
                    "cpoc", "l_spl", "c1_spl"]
     inp_okeyzi = [ "gpoc", "cphsoc", "rdefoc"]
-    inp_okeyz  = [ "tabsoc", "hoc"]
+    inp_okeyz  = [ "ah2oc", "ah4oc", "tabsoc", "hoc"]
     inp_okey = inp_okeyno[0..-1] + inp_okeyzi[0..-1] + inp_okeyz[0..-1]
     inp_ounit = { "fnot"=>"s-1", "beta"=>"s-1.m-1", "dxo"=>"m", "dto"=>"s", \
                   "rhooc"=>"kg.m-3", "cpoc"=>"J.kg-1.K-1", "l_spl"=>"m", \
                   "c1_spl"=>" ", "gpoc"=>"m.s-2", "cphsoc"=>"cm.s-1", \
-                  "rdefoc"=>"m", "tabsoc"=>"K", "hoc"=>"m" }
+                  "rdefoc"=>"m", "tabsoc"=>"K", "hoc"=>"m", \
+                  "ah2oc"=>"m2.s-1", "ah4oc"=>"m4.s-1"}
 
     inp_okey.each do | ky |
       inp_com[ky].sub!( /layer 1/, "layer n" )
@@ -244,106 +555,52 @@ end
                 "out_keyzi"=>inp_okeyzi, 
                 }
     return inp_hash
-  end # def K247_qgcm_read_inpara( input )
+  end # def self.prep_read_inpara( input )
 
-# 2015-08-30
-#   wrapper of K247_qgcm_read_inpara
-#   arguments: out_fu:    outfile unit
-#              inpara_fn: filename of input paramters
-#              ocpo_fn:   filename of ocpo
-#              a
-def K247_qgcm_write_inpara( input )
-out_fu = input["out_fu"]
-inpara_fn = input["inpara_fn"]
-i_hash = K247_qgcm_read_inpara( { "inp_fn"=>inpara_fn} )
-  i_val = i_hash["val"]; i_com = i_hash["comment"]
-  i_okeyno = i_hash["out_keyno"]; i_okeyzi = i_hash["out_keyzi"]
-  i_okeyz  = i_hash["out_keyz"]
-  i_okey   = i_okeyno[0..-1] + i_okeyzi[0..-1] + i_okeyz[0..-1]
-  i_ounit = i_hash["out_units"]
 
-ocpo_fn = input["ocpo_fn"] 
-grid_z = GPhys::IO.open( ocpo_fn, 'z').grid_copy
-grid_zi = GPhys::IO.open( ocpo_fn, 'zi').grid_copy
+## tmp method 
+# argument: apts -- axes_parts ( hash, return of gphys_obj.get_axparts_k247 )
+def self.prep_modify_grid( apts )
 
-i_okey.each do | oky |
-  if i_okeyz.include?(oky) || i_okeyzi.include?(oky)
-    attr_tmp = {"units"=>i_ounit[oky], "long_name"=>i_com[oky]}
-    gp_tmp = GPhys.new( grid_zi, VArray.new( i_val[oky], attr_tmp, oky ) ) if i_okeyzi.include?(oky)
-    gp_tmp = GPhys.new( grid_z, VArray.new( i_val[oky], attr_tmp, oky ) ) if i_okeyz.include?(oky)
-    GPhys::NetCDF_IO.write( out_fu, gp_tmp )
-  else
-    out_fu.put_att(oky, i_val[oky].to_s  + ":" \
-                  + i_ounit[oky] + ":" + i_com[oky] )
-  end # if i_okeyz.include?(oky) || i_okeyzi.include?(oky)
-end # i_okey.each do | oky |
+# version A.0.0.1 in k247_integrate_qgcmout.rb @2015-08-29
+  puts "  ocpo.nc@p: replace X,Y Axis ( 0 at center)"
+    nxp = apts['xp']['val'].length
+    dx =  apts['xp']['val'][1] - apts['xp']['val'][0]
+    apts['xp']['val'] -= dx * ( nxp - 1 ).to_f / 2.0
+    nyp = apts['yp']['val'].length
+    dy =  apts['yp']['val'][1] - apts['yp']['val'][0]
+    apts['yp']['val'] -= dy * ( nyp - 1 ).to_f / 2.0
+  puts "  ocpo.nc@p: convert T Axis to [days]"
+    apts['time']['val'] *= 365.0
+    apts['time']['atts']['units'] = 'days'
 
-end # def K247_qgcm_write_inpara( input )
+end # def self.prep_modify_grid( apts )
 
 
 
-def K247_qgcm_write_monit( input )
-out_fu = input["out_fu"]
-monit_nf = input[ "monit_fn" ]
-# output var names for monit.nc @ 2015-08-30
-mon_ovname = [ 'ddtkeoc', 'ddtpeoc', 'emfroc', 'ermaso', \
-               'et2moc', 'etamoc', 'kealoc', 'pkenoc']
-  mon_vzom = [ 'ddtpeoc', 'emfroc', 'ermaso', 'et2moc', 'etamoc']
-  mon_vzo  = [ 'ddtkeoc', 'kealoc']
-  mon_vz = mon_vzom + mon_vzo
-
-mon_ovname.each do | vname |
-  gp_v = GPhys::IO.open( monit_nf, vname)
-#  if mon_vz.include?( vname )
-    axes_parts = gp_v.get_axparts_k247
-    axes_parts["time"]["name"] = "time_monitor"
-        axes_parts["time"]["val"] *= 365.0
-        axes_parts["time"]["atts"]["units"] = "days"
-    axes_parts["zo"]["name"] = "z" if mon_vzo.include?( vname )
-    axes_parts["zom"]["name"] = "zi" if mon_vzom.include?( vname )
-      # adjust vertical axis name with ocpo.nc
-    new_grid = gp_v.restore_grid_k247( axes_parts )
-    gp_v2 = GPhys.new( new_grid, gp_v.data)
-    GPhys::NetCDF_IO.write( out_fu, gp_v2 )
-end # mon_ovname.each do | vname |
-
-end # def K247_qgcm_write_monit( input )
+## End: class methods for prepare
 
 
-def K247_qgcm_integrate_outdata( input )
-  ocpo_nf = input["ocpo_nf"]; out_nf = input["out_nf"]
-  monit_nf = input["monit_nf"]; inpara_nf = input["inpara_nf"]
-  out_flag = input["out_flag"]
-  
-  p ocpo_nf
-  p out_nf
+end # class K247_qgcm_data
 
-  if ( File.exist?(ocpo_nf) ) && ( ! File.exist?(out_nf) ) then
-    out_fu = NetCDF.create( out_nf ) if out_flag == true
-    vnames = GPhys::IO.var_names( ocpo_nf )
-    if (vnames.include?('p') == true) 
-      gp_p = GPhys::IO.open( ocpo_nf, 'p')
-        apts = gp_p.get_axparts_k247()
-        k247_qgcm_modify_grid( apts )
-        pgrid_new = gp_p.restore_grid_k247( apts )
-        #  p pgrid_new.class
-        gp_p2 = GPhys.new( pgrid_new, gp_p.data)
-         
-        GPhys::NetCDF_IO.write( out_fu, gp_p2 ) if out_flag == true
-    else
-      puts "\n\n  !!!ERROR!!! #{ocpo_nf} does not have p!\n\n"
-      exit -1
-    end # if (vnames.include?('p') == true) 
 
-      K247_qgcm_write_monit( { "out_fu"=>out_fu, "monit_fn"=>monit_nf } ) if out_flag == true
-      out_fu.put_att("original", ocpo_nf) if out_flag == true
-      K247_qgcm_write_inpara( { "out_fu"=>out_fu, "ocpo_fn"=>ocpo_nf, \
-                                "inpara_fn"=>inpara_nf} ) if out_flag == true
-    out_fu.close if out_flag == true
-  else # if ( File.exist?(ocpo_nf) ) then 
-    puts "  !!!ERROR!!! #{ocpo_nf} does not exist!" if ( ! File.exist?(ocpo_nf) )
-    puts "  !!!ERROR!!! #{out_nf} already exists!" if ( File.exist?(out_nf) )
-  end # if ( File.exist?(ocpo_nf) ) then 
+=begin
+## how to use: K247_qgcm_data
+nc_fn = "./outdata_tmp/q-gcm_29_tmp_out.nc"
+tmp = K247_qgcm_data.new( nc_fn )
 
-end # def K247_qgcm_integrate_outdata
+vnames = tmp.instance_variables
+vnames.each do | vn |
+  p tmp.instance_variable_get( vn )
+#  p tmp.instance_variable_get( vn ).get_att("long_name")
+end
+=end
+
+
+
+
+
+
+
+
 

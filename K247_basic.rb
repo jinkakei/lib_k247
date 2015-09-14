@@ -22,8 +22,27 @@ class NumRu::GPhys
 	def get_filename_k247
 		self.data.get_filename_k247 # added method for VArrayNetCDF
 	end
-	
-	
+  
+  # 2015-09-04
+  # ToDo: import change grid
+  def chg_gphys_k247( chg_hash )
+    return GPhys.new( self.grid, self.chg_varray_k247( chg_hash ) )
+  end
+
+	# 2015-09-03
+	#	
+	def chg_varray_k247( chg_hash )
+		self.data.chg_varray_k247( chg_hash ) # added method for VArray
+	end # def chg_varray_k247( chg_hash )
+		
+		# 2015-09-03
+		def chg_data_k247( chg_hash )
+			self.chg_varray_k247( chg_hash )
+		end # def chg_data_k247( chg_hash )
+
+
+
+
 	
 	# Create: 2015-08-25
 	# Change: 2015-08-29: 独立なメソッドから VArray のインスタンスメソッドへ
@@ -114,6 +133,40 @@ class NumRu::VArray
 		return att_all
 	end
 
+
+	# 2015-09-03
+	#	VArray ÌêðÏXµÄÔ·
+	#	ex.1) units ¾¯ðÏXµ½¢
+	#		new_data = gp_v.chg_data_k247( { "units" => "cm.s-1"})
+	#			{Í convert_units Æ¢¤Ìª éªA
+	#			³Ì units ªÔáÁÄ¢½êÉp¢é
+	# ToDo
+  #   optimize for VArrayNetCDF ( some information are lost now ) @2015-09-03
+	# arguments: hash ( "name", "val" ÈOÍ "attribute" ÆµÄµíêé)
+	# return:    changed VArray
+	def chg_varray_k247( chg_hash )
+
+		unless chg_hash["name"] == nil
+			new_name = chg_hash[ "name" ]; chg_hash.delete( "name" )
+		else
+			new_name = self.name
+		end
+
+		unless chg_hash["val"] == nil
+			new_val = chg_hash[ "name" ]; chg_hash.delete( "val" )
+		else
+			new_val = self.val
+		end
+		
+		new_att =  self.get_attall_k247
+		chg_hash.keys.each do | k |
+			new_att[ k ] = chg_hash[ k ]
+		end
+
+		return VArray.new( new_val, new_att, new_name )
+	end # def chg_varray_k247( chg_hash )
+	
+
 end # class NumRu::VArray
 	
 
@@ -141,4 +194,45 @@ end # class NumRu::VArrayNetCDF
 	
 	
 ## END: 既存のクラスにメソッドを追加
-	
+
+
+
+## methods by K247
+
+  # begin & end process
+  # 2014-11-28: Create
+  class K247_Main_Watch
+    # access
+    attr_accessor :begin_time
+
+    def initialize()
+      print "Program ", $0, " Start \n\n"
+      @begin_time = Time.now
+    end # def initialize()
+    
+    def show_time()
+      print "elapsed time = #{(Time.now) - @begin_time}sec\n"
+    end # def show_elapsed()
+    
+    def end_process()
+      end_time = Time.now
+      print "\n\n"
+      print "Program End : #{end_time - @begin_time}sec\n"
+    end # def end_process
+    
+  end # class K247_Main_Watch
+
+
+  # 2015-09-12: create
+  # ToDo
+  #   - treat dimension other than 2D
+  def na_max_with_index_k247( na )
+    max_val = na.max
+    ij= na.eq( max_val ).where 
+    ni = na.shape[0]
+    max_i = ij[0] % ni; max_j = ij[0] / ni
+    #  puts "test: #{na[ max_i, max_j ] } "
+    return max_val, max_i, max_j
+  end
+
+__END__
