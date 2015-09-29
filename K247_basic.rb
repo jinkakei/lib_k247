@@ -199,6 +199,11 @@ end # class NumRu::VArrayNetCDF
 
 ## methods by K247
 
+##  General command
+##  NArray operator
+
+
+##  General command
   # begin & end process
   # 2014-11-28: Create
   class K247_Main_Watch
@@ -222,6 +227,27 @@ end # class NumRu::VArrayNetCDF
     
   end # class K247_Main_Watch
 
+  # ToDo: improve @ 2015-09-29
+  def exec_command( cmd )
+    puts cmd
+    ret = system(cmd)
+    puts "[end]#{cmd}: #{ret}"
+    print "\n\n"
+  end
+
+  # ToDo: improve @ 2015-09-29
+  def get_y_or_n( question=nil )
+    print question
+    answer = gets.chomp
+    while (answer != "y") && (answer != "n")
+      print "  please answer by y or n: "
+      answer = gets.chomp
+    end
+    return answer
+  end
+
+
+##  NArray operator
 
   # 2015-09-12: create
   # ToDo
