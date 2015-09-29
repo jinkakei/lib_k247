@@ -204,6 +204,7 @@ end # class NumRu::VArrayNetCDF
 
 
 ##  General command
+
   # begin & end process
   # 2014-11-28: Create
   class K247_Main_Watch
@@ -231,7 +232,8 @@ end # class NumRu::VArrayNetCDF
   def exec_command( cmd )
     puts cmd
     ret = system(cmd)
-    puts "[end]#{cmd}: #{ret}"
+    #puts "[result] #{cmd}: #{ret}"
+    puts "[result] #{ret} ( #{cmd} )"
     print "\n\n"
   end
 
@@ -245,6 +247,15 @@ end # class NumRu::VArrayNetCDF
     end
     return answer
   end
+
+  def exit_with_msg( msg )
+    print "\n\n"
+    puts "!ERROR! #{msg}!"
+    print "\n"
+    exit -1
+  end
+##  END: General command
+
 
 
 ##  NArray operator
@@ -260,5 +271,6 @@ end # class NumRu::VArrayNetCDF
     #  puts "test: #{na[ max_i, max_j ] } "
     return max_val, max_i, max_j
   end
+##  END: NArray operator
 
 __END__
