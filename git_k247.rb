@@ -27,7 +27,7 @@ module Git_K247
 #  git_gdir_each
 
 # common part
-  # 2015-09-30: move to K247_basick.rb
+  # 2015-09-30: Latest versions are in K247_basick.rb
 
   def popen3_wrap( cmd )
     puts "popen3: #{cmd}"
