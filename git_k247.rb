@@ -48,6 +48,12 @@ module Git_K247
         p3w_ret["e"].each do |line| puts "  #{line}" end
     end
 
+  def exec_command( cmd )
+    puts cmd
+    ret = system(cmd)
+    puts "[end]#{cmd}: #{ret}"
+    print "\n\n"
+  end
 
   # 2015-09-18: create
   # tmp method
@@ -127,13 +133,15 @@ def git_commit_interactive
   exec_command( "git commit --interactive" )
 end # def git_commit_interactive
 
-  def exec_command( cmd )
-    puts cmd
-    ret = system(cmd)
-    puts "[end]#{cmd}: #{ret}"
-    print "\n\n"
+def gcom_i_if_need
+  gstat = popen3_wrap( "git status")
+    gsummary = gstat["o"].last
+    kword = "nothing to commit"
+  unless gsummary.include?( kword )
+    show_stdoe( gstat )
+    git_commit_interactive 
   end
-
+end
 
 def get_gitdirs 
   current_dir = Dir.pwd
@@ -168,7 +176,7 @@ def git_gdir_each( arg=nil )
       if gact == "pull"
         gret[n] = git_pull_interactive
       else # "push"
-        git_commit_interactive
+        gcom_i_if_need
         gret[n] = git_push_interactive
       end # if gact == "pull"
     end
