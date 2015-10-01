@@ -199,11 +199,11 @@ end # class NumRu::VArrayNetCDF
 
 ## methods by K247
 
-##  General command
+##  General methods
 ##  NArray operator
 
 
-##  General command
+##  General methods
 
   # begin & end process
   # 2014-11-28: Create
@@ -276,7 +276,44 @@ end # class NumRu::VArrayNetCDF
     print "\n"
     exit -1
   end
-##  END: General command
+
+
+  # 2015-10-01: http://qiita.com/khotta/items/9233a9ffeae68b58d84f
+  # ToDo : 
+  #   - generalize
+  #   - rename
+  #   - yet : http://melborne.github.io/2010/11/07/Ruby-ANSI/
+  def puts_color( msg, color=nil )
+    color_set( color ); puts msg; color_end
+  end
+  def color_set( color=nil )
+    case color
+      when "red"
+        print "\e[31m"
+      when "green"
+        print "\e[32m"
+      when nil
+        print "please set color\n"
+      else
+        print "sorry, the color is not yet implemented\n"
+    end
+  end
+  def color_end
+    print "\e[0m"
+  end
+
+=begin # test_color.rb
+require "~/lib_k247/K247_basic"
+
+puts "Hello!"
+puts_color "Hello!", "red"
+puts_color "Hello!", "green"
+puts_color "Hello!"
+puts_color "Hello!", "yellow"
+puts "Hello!"
+=end # test_color.rb
+
+##  END: General methods
 
 
 
