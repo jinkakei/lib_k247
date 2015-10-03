@@ -292,6 +292,10 @@ end # class NumRu::VArrayNetCDF
         print "\e[31m"
       when "green"
         print "\e[32m"
+      when "yellow"
+        print "\e[33m"
+      when "blue"
+        print "\e[34m"
       when nil
         print "please set color\n"
       else
