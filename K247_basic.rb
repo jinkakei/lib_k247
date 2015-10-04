@@ -316,7 +316,10 @@ puts_color "Hello!"
 puts_color "Hello!", "yellow"
 puts "Hello!"
 =end # test_color.rb
-
+  
+  def time_now_str_sec
+    return Time.now.strftime("%Y%m%d_%H%M_%S")
+  end
 ##  END: General methods
 
 
