@@ -230,11 +230,10 @@ end # class NumRu::VArrayNetCDF
 
   # ToDo: improve @ 2015-09-29
   def exec_command( cmd )
-    puts cmd
+    #print "\n"
     ret = system(cmd)
-    #puts "[result] #{cmd}: #{ret}"
-    puts "[result] #{ret} ( #{cmd} )"
-    print "\n\n"
+    puts "#{ret} : #{cmd}"
+    #print "\n\n"
   end
 
   # ToDo: improve @ 2015-09-29
