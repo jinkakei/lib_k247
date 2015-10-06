@@ -27,7 +27,7 @@ class K247_qgcm_data
               :l_spl, :c1_spl
   attr_reader :gpoc, :cphsoc, :rdefoc, :ah2oc, :ah4oc, :tabsoc, :hoc
   # from init_etc
-  attr_reader :gcname, :cname
+  attr_reader :gcname, :cname, :dname
 
 # 2015-08 or 09: create
 # 2015-09-10: modify argument ( nc_fn -> input: fname or casename)
@@ -39,14 +39,26 @@ class K247_qgcm_data
 # return   : none
 # action   : set instance variables
 def initialize( argv )
-# nc_fn: ( return of self.prep_integrate_outdata )
-  @nc_fn = init_fname( argv )
-  init_set_var
-  init_inparam
-  init_monit
-  init_etc
+  if argv == "__testmode__"
+    puts "test mode: initialize process is skipped"
+    @testmode_flag = true
+  else
+    exit_with_msg( "input casename") if argv == nil
+    @nc_fn = init_fname( argv )
+    init_set_var
+    init_inparam
+    init_monit
+    init_etc
+  end
 end # initialize
 
+  def is_testmode?
+    if @testmode_flag
+      return true
+    else
+      return false
+    end
+  end
 
 # methods index
 ## - instance methods for check 
@@ -95,7 +107,7 @@ end # initialize
   #     ( another method)
   #   - refactoring ( abstract method )
   def chk_energy_avg_ncout( input=nil)
-    out_fname = "energy_check.nc" 
+    out_fname = "#{@dname}energy_check.nc" 
     puts "Output area averaged energy to #{out_fname}"
     puts "  case: #{@gcname}-#{@cname}"
     ke = @keocavg
@@ -139,6 +151,7 @@ end # initialize
 ##    init_coord
 ##    init_teocavg
 ##    init_casename
+##      init_dname
 ##
 
 # Create: 2015-09-10
@@ -265,6 +278,7 @@ end # def init_etc
     #@gcname, @cname = tmp2.split("_")
     @gcname = self.class.prep_set_greater_cname
     @cname = tmp2.split( "#{@gcname}_" )[1]
+    init_dname( @cname )
   end # def init_casename
   
   def init_dname( cname )
@@ -348,9 +362,8 @@ end # def self.prep_integrate_outdata
     nz    = apts[   'z']['val'].length
     ntime = apts['time']['val'].length
     current_size = nxp * nyp * nz * ntime
-
-    puts "\n  INFO: Writing Huge Data ( please wait)\n" \
-      if current_size >= size_criterion 
+    msg = "\n  INFO: Writing Huge Data ( please wait)\n"
+    puts msg if current_size >= size_criterion 
   end
 
 # 2015-09-04
@@ -378,7 +391,7 @@ def self.prep_set_filenames( cname )
 end # def self.prep_set_filenames( cname )
 
   def self.prep_set_greater_cname( arg=nil)
-  # ver. 2015-10-06: use ./Goal__TestGoal__.txt
+  # ver. 2015-10-06: use ./Goal__*__.txt
     goal_file = Dir::glob("./Goal__*__.txt")
     if goal_file.length > 1
       p goal_file
@@ -424,11 +437,13 @@ end # def self.prep_write_monit( input )
 
 
 # 2015-08-30
+# ToDo
+#   - too long!
+#
 #   wrapper of K247_qgcm_read_inpara
 #   arguments: out_fu:    outfile unit
 #              inpara_fn: filename of input paramters
 #              ocpo_fn:   filename of ocpo
-#              a
 def self.prep_write_inpara( input )
   out_fu = input["out_fu"]
   inpara_fn = input["inpara_fn"]
@@ -625,11 +640,21 @@ vnames.each do | vn |
 end
 =end
 
+if $0 == __FILE__ then
 
+require 'minitest/autorun'
+require '~/lib_k247/minitest_unit_k247'
 
+# temporary @ 2015-10-06
+# plan
+#   prep
+#   init ( init __testmode__ )
+#   normal ( with full initialize )
+class Test_K247_qgcm_data < MiniTest::Unit::TestCase
+  def test_testmode
+    obj = K247_qgcm_data.new("__testmode__")
+    assert obj.is_testmode?
+  end
+end # Test_K247_qgcm_data
 
-
-
-
-
-
+end # if $0 == __FILE__ then
