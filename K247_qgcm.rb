@@ -253,7 +253,10 @@ end # def init_etc
   def init_etc_casename
     tmp = @nc_fn.split("q-gcm_")[1] # XX_YY_out.nc
     tmp2 = tmp.split("_out")[0] # XX_YY
-    @gcname, @cname = tmp2.split("_")
+    # for change of directory structure ( 2015-10-06 )
+    #@gcname, @cname = tmp2.split("_")
+    @gcname = self.class.prep_set_greater_cname
+    @cname = tmp2.split( "#{@gcname}_" )[1]
   end # def init_etc_casename
 
 
@@ -262,6 +265,7 @@ end # def init_etc
 ##  contents@2015-09-02
 ##   - self.prep_integrate_outdata( cname )
 ##   - self.prep_set_filename( cname )
+##     --  self.prep_set_greater_cname( arg=nil)
 ##   - self.prep_write_monit( input )
 ##   - self.prep_write_inpara( input )
 ##     -- self.prep_read_inpara( input )
@@ -351,9 +355,7 @@ def self.prep_set_filenames( cname )
     fnames["out_nf"] = fnames["dname"] + "q-gcm_tmp_out.nc"
   else
     fnames["dname"] = "./outdata_" + cname + "/"
-    # gcname: greater casename ( src_testXX )
-      full_path = File::expand_path( fnames["dname"] )
-      gcname = full_path.split("src_test")[1].split("/")[0]
+    gcname = self.prep_set_greater_cname
     fnames["out_nf"] = fnames["dname"] \
           + "q-gcm_" + gcname + "_" + cname + "_out.nc"
   end
@@ -362,6 +364,14 @@ def self.prep_set_filenames( cname )
   return fnames
 end # def self.prep_set_filenames( cname )
 
+  def self.prep_set_greater_cname( arg=nil)
+    # gcname: greater casename ( src_testXX )
+    # old ver ( 2015-10-06: change diretory structure )
+    #  full_path = File::expand_path( fnames["dname"] )
+    #  gcname = full_path.split("src_test")[1].split("/")[0]
+
+    return Dir::glob("./Goal__*__.txt")[0].split("__")[1]
+  end
 
 def self.prep_write_monit( input )
   out_fu = input["out_fu"]

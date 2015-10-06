@@ -182,7 +182,7 @@ def git_gdir_each( arg=nil )
     end
   end # gitdirs.each_with_index do | gdir,n |
   
-  print "\n\n\n"; puts "Results (0: true, -1: false)"
+  print "\n\n\n"; puts "Results ( true: 0, false: -1 )"
   gitdirs.each_with_index do | gdir,n |
     puts "  #{gdir} (#{gret[n]})"
   end
