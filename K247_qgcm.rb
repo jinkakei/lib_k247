@@ -5,10 +5,19 @@
 require "numru/gphys"
 require "numru/ggraph"
 include NumRu
-require "~/lib_k247/K247_basic"
+#require "~/lib_k247/K247_basic"
 
 
+## copied from ~/lib_k247/K247_basic.rb
 
+
+def exit_with_msg( msg )
+  print "\n\n!ERROR! #{msg}!\n\nexit\n\n"
+  exit -1
+end
+
+
+## END: copied from ~/lib_k247/K247_basic.rb
 
 class K247_qgcm_data
 
@@ -303,23 +312,25 @@ end # def init_etc
 # Create: 2015-08 or 09
 # modify: 2015-09-10 ( argument & import prep_set_filenames )
 #
-# ToDo: treat large datasize
+# ToDo: 
+    # treat large datasize
+    # kill out_flag
 #
 # argument: cname -- casename ( String, donot include "_" )
 # action  : read outdata_YY/??? & write outdata_YY/qgcm_XX_YY_out.nc
 # return  : none
-def self.prep_integrate_outdata( cname )
-
+def self.prep_integrate_outdata( cname=nil )
+  exit_with_msg("input case name") if cname==nil
+#here
   fnames = self.prep_set_filenames( cname )
     out_nf = fnames["out_nf"]
+=begin
     ocpo_nf = fnames["dname"] + "ocpo.nc"
     monit_nf = fnames["dname"] + "monit.nc"
     inpara_nf = fnames["dname"] + "input_parameters.m"
-    out_flag = fnames["out_flag"]
-
   if ( File.exist?(ocpo_nf) ) && ( ! File.exist?(out_nf) ) then
-    puts "Create #{out_nf}" if out_flag == true
-    out_fu = NetCDF.create( out_nf ) if out_flag == true
+    puts "Create #{out_nf}"
+    out_fu = NetCDF.create( out_nf )
     vnames = GPhys::IO.var_names( ocpo_nf )
     if (vnames.include?('p') == true) 
       gp_p = GPhys::IO.open( ocpo_nf, 'p')
@@ -330,26 +341,22 @@ def self.prep_integrate_outdata( cname )
         gp_p2 = GPhys.new( pgrid_new, gp_p.data)
          
       # 2015-09-11: change for huge data
-        #GPhys::NetCDF_IO.write( out_fu, gp_p2 ) if out_flag == true
-        # !Error! for 960x480x2x731 @2015-09-11
-        #   ?? ../src_test29/tmp_hugewrite.rb is no problem with same code
+        #GPhys::NetCDF_IO.write( out_fu, gp_p2 )
         GPhys::NetCDF_IO.each_along_dims_write( gp_p2, out_fu, -1) \
-          do |sub| [sub] end if out_flag == true
+          do |sub| [sub] end
     else
-      puts "\n\n  !!!ERROR!!! #{ocpo_nf} does not have p!\n\n"
-      exit -1
+      exit_with_msg("#{ocpo_nf} does not have p!")
     end # if (vnames.include?('p') == true) 
-
-      self.prep_write_monit( { "out_fu"=>out_fu, "monit_fn"=>monit_nf } ) if out_flag == true
-      out_fu.put_att("original", ocpo_nf) if out_flag == true
+      self.prep_write_monit( { "out_fu"=>out_fu, "monit_fn"=>monit_nf } ) 
+      out_fu.put_att("original", ocpo_nf)
       self.prep_write_inpara( { "out_fu"=>out_fu, "ocpo_fn"=>ocpo_nf, \
-                                "inpara_fn"=>inpara_nf} ) if out_flag == true
-    out_fu.close if out_flag == true
-  else # if ( File.exist?(ocpo_nf) ) then 
-    puts "  !!!ERROR!!! #{ocpo_nf} does not exist!" if ( ! File.exist?(ocpo_nf) )
-    puts "  !!!ERROR!!! #{out_nf} already exists!" if ( File.exist?(out_nf) )
-  end # if ( File.exist?(ocpo_nf) ) then 
-
+                                "inpara_fn"=>inpara_nf} )
+    out_fu.close
+  else # if ( File.exist?(ocpo_nf) ) && ( ! File.exist?(out_nf) )
+    exit_with_msg("#{ocpo_nf} does not exist!") unless File.exist?(ocpo_nf)
+    exit_with_msg("#{out_nf} already exists!" ) if File.exist?(out_nf)
+  end # if ( File.exist?(ocpo_nf) ) && ( ! File.exist?(out_nf) )
+=end
 end # def self.prep_integrate_outdata
 
   # 2015-09-11
@@ -376,16 +383,10 @@ end # def self.prep_integrate_outdata
 def self.prep_set_filenames( cname )
   
   fnames = Hash.new
-  if cname == nil
-    fnames["dname"] = "./outdata/"
-    fnames["out_nf"] = fnames["dname"] + "q-gcm_tmp_out.nc"
-  else
     fnames["dname"] = "./outdata_" + cname + "/"
     gcname = self.prep_set_greater_cname
     fnames["out_nf"] = fnames["dname"] \
           + "q-gcm_" + gcname + "_" + cname + "_out.nc"
-  end
-  fnames["out_flag"] = true # default, will be modified
 
   return fnames
 end # def self.prep_set_filenames( cname )
@@ -650,6 +651,14 @@ require '~/lib_k247/minitest_unit_k247'
 #   prep
 #   init ( init __testmode__ )
 #   normal ( with full initialize )
+#
+#here
+class Test_K247_qgcm_prep < MiniTest::Unit::TestCase
+  def test_
+    assert obj.is_testmode?
+  end
+end # Test_K247_qgcm_prep
+
 class Test_K247_qgcm_data < MiniTest::Unit::TestCase
   def test_testmode
     obj = K247_qgcm_data.new("__testmode__")
