@@ -270,9 +270,7 @@ end # class NumRu::VArrayNetCDF
     end
 
   def exit_with_msg( msg )
-    print "\n\n"
-    puts "!ERROR! #{msg}!"
-    print "\n"
+    print "\n\n!ERROR! #{msg}!\n\nexit\n\n"
     exit -1
   end
 
