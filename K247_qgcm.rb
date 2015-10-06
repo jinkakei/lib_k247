@@ -41,14 +41,9 @@ class K247_qgcm_data
 def initialize( argv )
 # nc_fn: ( return of self.prep_integrate_outdata )
   @nc_fn = init_fname( argv )
-  @p = GPhys::IO.open( @nc_fn, "p" )
-  @q = nil # set by calc_q
-# initialize parameters ( from input_parameters.m )
-  init_inparam_zdim
-  init_inparam_nodim
-# initialize data in monit.nc ()
+  init_set_var
+  init_inparam
   init_monit
-  init_coord
   init_etc
 end # initialize
 
@@ -96,7 +91,9 @@ end # initialize
   # 2015-09-09
   # Output Area averaged energy to NetCDF file
   # ToDo
-  #   add zonally & meridionally averaged energies
+  #   - create zonally & meridionally averaged energies
+  #     ( another method)
+  #   - refactoring ( abstract method )
   def chk_energy_avg_ncout( input=nil)
     out_fname = "energy_check.nc" 
     puts "Output area averaged energy to #{out_fname}"
@@ -130,42 +127,46 @@ end # initialize
 
 
 ## - instance methods for initialzie
-# contents ( 2015-09-04 )
+# contents ( 2015-10-06 )
 ##
 ##  init_fname
+##  init_set_var
 ##  init_monit
-##  init_inparam_nodim
-##  init_inparam_zdim
-##  init_coord
+##  init_inparam
+##    init_inparam_nodim
+##    init_inparam_zdim
 ##  init_etc
+##    init_coord
+##    init_teocavg
+##    init_casename
 ##
 
 # Create: 2015-09-10
 #
-def init_fname( input=nil )
-
-#  p "Test init_fname" #=> ?? Error ?? 
-
-  if input == nil
-    puts "init_fname: please set casename or filename (argument is nil)"
-  else
-    if input.include?(".nc")
-      nc_fn = input
-    else # casename
-      nc_fn = ( self.class.prep_set_filenames( input ) )["out_nf"]
-    end
-    if File.exist?( nc_fn )
-      puts "init_fname: NetCDF file #{nc_fn}"
-      return nc_fn
-    else
-      puts "init_fname: No Such File #{nc_fn}"
-      exit -1
-    end
+def init_fname( input )
+  if input.include?(".nc")
+    nc_fn = input
+  else # casename
+    nc_fn = conv_cname_to_fname( input )
   end
+  exit_with_msg("No Such File #{nc_fn}") unless File.exist?( nc_fn )
+  puts "Integrated filename: #{nc_fn}"
+  return nc_fn
+end
+  def conv_cname_to_fname( cname )
+    return self.class.prep_set_filenames( cname )["out_nf"]
+  end
+
+def init_set_var
+  @p = GPhys::IO.open( @nc_fn, "p" )
+  @q = nil # set by calc_q
 end
 
 # Create: 2015-09-01
-## ToDo : select variables
+## ToDo
+#    - select variables
+#    - refactoring: kill duplication
+#    - refactoring: [calc pe & set warnig] -> move to prep
 def init_monit
   @ddtkeoc = GPhys::IO.open( @nc_fn, "ddtkeoc")
   @ddtpeoc = GPhys::IO.open( @nc_fn, "ddtpeoc")
@@ -187,79 +188,91 @@ def init_monit
 end # def init_monit( @nc_fn )
 
 
-# Create: 2015-09-01
-## ToDo : sophisticate
-def init_inparam_zdim
-  @gpoc = GPhys::IO.open( @nc_fn, "gpoc" )
-  @cphsoc = GPhys::IO.open( @nc_fn, "cphsoc" )
-  @rdefoc = GPhys::IO.open( @nc_fn, "rdefoc" )
-  @ah2oc = GPhys::IO.open( @nc_fn, "ah2oc" )
-  @ah4oc = GPhys::IO.open( @nc_fn, "ah4oc" )
-  @tabsoc = GPhys::IO.open( @nc_fn, "tabsoc" )
-  @hoc = GPhys::IO.open( @nc_fn, "hoc" )
-end # def set_inparam_zdim( @nc_fn )
+def init_inparam
+  init_inparam_zdim
+  init_inparam_nodim
+end
 
-
-## Create: 2015-09-01
-def init_inparam_nodim
-  nc_fu = NetCDF.open( @nc_fn )
-  anames = nc_fu.att_names
-  ## !caution! 
-  anames_not_param = ["history", "original"]
-    anames_not_param.each do | dname | anames.delete( dname ) end
-  anames.each do | aname |
-    att_line = nc_fu.att( aname ).get
-    val, units, long_name = att_line.split(":")
-    tna = NArray[ val.to_f ]
-    va_tmp = VArray.new( tna, {"units"=>units, "long_name"=>long_name}, aname)
-    instance_variable_set("@#{aname}", va_tmp)
-    #puts "  in_para: #{aname}" # 
-  end
-  nc_fu.close
-end # set_inparam_nodim
-
-# 2015-09-04
-def init_coord
-  @xpcor = @p.coord("xp"); @xp = @xpcor.val; @nxp = @xp.length
-  @ypcor = @p.coord("yp"); @yp = @ypcor.val; @nyp = @yp.length
-  @zcor = @p.coord("z"); @z = @zcor.val; @nz = @z.length
-  @zicor = @et2moc.coord("zi"); @zi = @zicor.val; @nzi = @zi.length
-  @tcor = @p.coord("time"); @t = @tcor.val; @nt = @t.length
-  @tmcor = @et2moc.coord("time_monitor"); @tm = @tmcor.val; @ntm = @tm.length
-end # def init_coord
+  # Create: 2015-09-01
+  ## ToDo : sophisticate
+  def init_inparam_zdim
+    @gpoc = GPhys::IO.open( @nc_fn, "gpoc" )
+    @cphsoc = GPhys::IO.open( @nc_fn, "cphsoc" )
+    @rdefoc = GPhys::IO.open( @nc_fn, "rdefoc" )
+    @ah2oc = GPhys::IO.open( @nc_fn, "ah2oc" )
+    @ah4oc = GPhys::IO.open( @nc_fn, "ah4oc" )
+    @tabsoc = GPhys::IO.open( @nc_fn, "tabsoc" )
+    @hoc = GPhys::IO.open( @nc_fn, "hoc" )
+  end # def set_inparam_zdim( @nc_fn )
+  
+  
+  ## Create: 2015-09-01
+  def init_inparam_nodim
+    nc_fu = NetCDF.open( @nc_fn )
+    anames = nc_fu.att_names
+    ## !caution! 
+    anames_not_param = ["history", "original"]
+      anames_not_param.each do | dname | anames.delete( dname ) end
+    anames.each do | aname |
+      att_line = nc_fu.att( aname ).get
+      val, units, long_name = att_line.split(":")
+      tna = NArray[ val.to_f ]
+      va_tmp = VArray.new( tna, {"units"=>units, "long_name"=>long_name}, aname)
+      instance_variable_set("@#{aname}", va_tmp)
+      #puts "  in_para: #{aname}" # 
+    end
+    nc_fu.close
+  end # set_inparam_nodim
 
 
 # 2015-09-04
 def init_etc
-  init_etc_teocavg
-  init_etc_casename
+  init_coord
+  init_teocavg
+  init_casename
 end # def init_etc
+
+  # ToDo
+  #   - refactoring: kill dupliction
+  def init_coord
+    @xpcor = @p.coord("xp"); @xp = @xpcor.val; @nxp = @xp.length
+    @ypcor = @p.coord("yp"); @yp = @ypcor.val; @nyp = @yp.length
+    @zcor = @p.coord("z"); @z = @zcor.val; @nz = @z.length
+    @zicor = @et2moc.coord("zi"); @zi = @zicor.val; @nzi = @zi.length
+    @tcor = @p.coord("time"); @t = @tcor.val; @nt = @t.length
+    @tmcor = @et2moc.coord("time_monitor"); @tm = @tmcor.val; @ntm = @tm.length
+  end # def init_coord
 
   # 2015-09-04
   # ToDo
   #   - use iterater
   #   - sum up peoc for 3 or more layer model
-  def init_etc_teocavg
+  def init_teocavg
     total_ke = @keocavg.cut( "z"=>@z[0] )
     for k in 1..@nz-1
       total_ke = total_ke + @keocavg.cut( "z"=>@z[k])
     end
     @teocavg = ( @peocavg + total_ke ).chg_gphys_k247( \
                   {"name"=>"teocavg", "long_name"=>"Averaged total energy"})
-  end # def init_etc_teocavg
+  end # def init_teocavg
 
   # 2015-09-09
   # ToDo: assumption of filename as ".../outdata_YY/q-gcm_XX_YY_out.nc"
-  def init_etc_casename
+  def init_casename
     tmp = @nc_fn.split("q-gcm_")[1] # XX_YY_out.nc
     tmp2 = tmp.split("_out")[0] # XX_YY
     # for change of directory structure ( 2015-10-06 )
     #@gcname, @cname = tmp2.split("_")
     @gcname = self.class.prep_set_greater_cname
     @cname = tmp2.split( "#{@gcname}_" )[1]
-  end # def init_etc_casename
-
-
+  end # def init_casename
+  
+  def init_dname( cname )
+    @dname = conv_cname_to_dname( cname ) # !CAUTION!
+  end
+    def conv_cname_to_dname( cname )
+      return self.class.prep_set_filenames( cname )["dname"]
+    end
 
 ## - class methods for preparation ( integrate outdata_*/* )
 ##  contents@2015-09-02
@@ -365,14 +378,20 @@ def self.prep_set_filenames( cname )
 end # def self.prep_set_filenames( cname )
 
   def self.prep_set_greater_cname( arg=nil)
-    # gcname: greater casename ( src_testXX )
+  # ver. 2015-10-06: use ./Goal__TestGoal__.txt
+    goal_file = Dir::glob("./Goal__*__.txt")
+    if goal_file.length > 1
+      p goal_file
+      exit_with_msg("Test Goal must be one and only")
+    end
+    exit_with_msg("Goal__*__.txt is not exist") if goal_file[0] == nil
+    return goal_file[0].split("__")[1]
     # old ver ( 2015-10-06: change diretory structure )
     #  full_path = File::expand_path( fnames["dname"] )
     #  gcname = full_path.split("src_test")[1].split("/")[0]
-
-    return Dir::glob("./Goal__*__.txt")[0].split("__")[1]
   end
 
+# 2015-10-06: Too Long
 def self.prep_write_monit( input )
   out_fu = input["out_fu"]
   monit_nf = input[ "monit_fn" ]
