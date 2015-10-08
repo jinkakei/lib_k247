@@ -163,6 +163,11 @@ def git_gdir_each( arg=nil )
     gact = "pull"
     puts "Wrong argument #{arg}, set git action pull"
   end
+  
+  # for quick login
+  if gact == "pull"
+    return 0 if get_y_or_n( "exec git pull each gdir?: " ) == "n"
+  end
 
   gitdirs = get_gitdirs
     gret = Array( gitdirs.length )
