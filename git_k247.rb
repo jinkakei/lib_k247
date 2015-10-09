@@ -59,7 +59,7 @@ module Git_K247
   # tmp method
   def get_y_or_n( question=nil )
     print question
-    answer = gets.chomp
+    answer = STDIN.gets.chomp
     while (answer != "y") && (answer != "n")
       print "  please answer by y or n: "
       answer = gets.chomp
@@ -162,11 +162,6 @@ def git_gdir_each( arg=nil )
   else
     gact = "pull"
     puts "Wrong argument #{arg}, set git action pull"
-  end
-  
-  # for quick login
-  if gact == "pull"
-    return 0 if get_y_or_n( "exec git pull each gdir?: " ) == "n"
   end
 
   gitdirs = get_gitdirs
