@@ -336,4 +336,19 @@ puts "Hello!"
   end
 ##  END: NArray operator
 
+
+## Array
+
+def ary_get_include_index( ary, kwd )
+  idx = []
+  for i in 0..ary.length-1
+    idx.push( i ) if ary[i].include?( kwd )
+  end
+  return idx
+end
+
+## END: Array
+
+
+
 __END__
