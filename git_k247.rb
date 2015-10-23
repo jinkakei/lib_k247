@@ -72,7 +72,21 @@ module Git_K247
 
 
 def git_push_interactive( arg = nil )
-
+# ToDo: reaction for git remote failed
+# message
+=begin
+popen3: git remote show origin
+pen3: git remote show origin
+  STDOUT:
+  1
+  STDERR:
+  ssh: connect to host github.com port 22: Connection timed out
+  fatal: Could not read from remote repository.
+  
+  Please make sure you have the correct access rights
+  and the repository exists.
+/home/t/t51063/lib_k247/git_k247.rb:81:in `git_push_interactive': undefined method `include?' for 1:Fixnum (NoMethodError)
+=end
   gstat = popen3_wrap("git remote show origin")
   show_stdoe( gstat )
   ff_kword = "fast-forwardable"
