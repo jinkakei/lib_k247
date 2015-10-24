@@ -131,6 +131,8 @@ def git_add_interactive
 end # def git_add_interactive
 
 def git_commit_interactive
+# ToDo: treat case "nothing to commit"
+    #   now -- puts "false" on stdout in spite of no problem
   exec_command( "git commit --interactive" )
 end # def git_commit_interactive
 
