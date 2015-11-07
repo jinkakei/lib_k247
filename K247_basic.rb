@@ -73,21 +73,16 @@ class NumRu::GPhys
 	end # get_axparts_k247
 	
 	
-	# Create: 2015-08-25
-	# Change: 2015-08-29: 独立なメソッドから VArray のインスタンスメソッドへ
-	#	改名：K247_gphys_restore_grid => restore_grid_k247
-	#
-	# 軸の構成要素から Grid を作成
-	#	gphys_obj.get_axparts_k247 と対になる
-	#
 	# ToDo: 
-	#	・記述が泥臭い
-	#	・オブジェクトから呼ぶのがちょっと違和感あるが、、、
-	#
+	#  - sophisticate coding
 	# argument: axes_parts - hash ( return of gphys_obj.get_axparts_k247 )
 	# return:   grid_new  -- restored grid
 	#
 	def restore_grid_k247( axes_parts )
+    self.class::restore_grid_k247( axes_parts )
+  end # def restore_grid_k247( axes_parts )
+
+	def self.restore_grid_k247( axes_parts )
 		nax = axes_parts["names"].length
 		anames = axes_parts["names"]
 		ax = {}
@@ -100,7 +95,7 @@ class NumRu::GPhys
 		rgrid = Grid.new( ax[0], ax[1], ax[2], ax[3] ) if nax == 4
 
 		return rgrid
-	end # def K247_gphys_restore_grid( axes_parts )
+  end # def self.restore_grid_k247( axes_parts )
 	
 	
 	
