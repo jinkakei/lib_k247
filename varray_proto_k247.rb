@@ -9,11 +9,30 @@ include NumRu
 #   - under construction ( build basics )
 #   - add lib_k247
 #   - 
+
+# 2016-02-20
+class VAP_arg
+  attr_accessor :nary, :attr, :name, :grid
+
+  def initialize( name )
+    @nary = nil
+    @name = name
+    @attr = nil
+    @grid = nil
+  end
+
+end # class VAP_arg
+
+
 class VArray_Proto_K247
   attr_reader :nary, :attr, :name
   attr_reader :grid
   
-  def initialize( nary=nil, attr=nil, name=nil, grid=nil )
+  #def initialize( nary=nil, attr=nil, name=nil, grid=nil )
+  # 2016-02-20: update
+  def initialize( input ) # VAP_arg
+    nary = input.nary; attr = input.attr
+    name = input.name; grid = input.grid
   # arguments == nil
     @nary  = NArray.sfloat(1)
     @attr  = {"units"=>"none"}

@@ -196,6 +196,8 @@ end # class NumRu::VArrayNetCDF
 
 ##  General methods
 ##  NArray operator
+##  Array
+##  binary read
 
 
 ##  General methods
@@ -344,6 +346,103 @@ end
 
 ## END: Array
 
+
+## Binary read
+## for binary read ( bread_* )
+# ToDo
+#   - kill duplication by "conv_arr1d_to_na"
+#   - expand for 4d array
+#   - move K247_basic.rb
+# memo
+#   - 2016-02-20: move from read_nhmodel.rb
+#       based on nonhydro_akitomo/src/binary_read.rb
+  def bread_int( fu, im=1, jm=1 )
+    tmp = fu.read( 4 * im * jm ) # integer
+    tmp2 = tmp.unpack( "i>*" ) # convert: integer, Big Endian
+    if jm > 1
+      tmp3 = NArray.int( im, jm )
+      for j in 0..jm-1
+        tmp3[0..-1,j] = tmp2[(im)*j..(im)*(j+1)-1]
+      end
+    else   # jm == 1
+      if im > 1
+        tmp3 = NArray.int( im )
+        tmp3[0..-1] = tmp2[0..-1]
+      else # im == 1
+        tmp3 = tmp2
+      end
+    end
+    return tmp3
+  end # def bread_int
+  
+  def bread_real( fu, im=1, jm=1 )
+    tmp = fu.read( 4 * im * jm )
+    tmp2 = tmp.unpack( "g*" ) # real, big endian
+    tmp3 = NArray.sfloat( im, jm )
+    if jm > 1
+      tmp3 = NArray.sfloat( im, jm )
+      for j in 0..jm-1
+        tmp3[0..-1,j] = tmp2[(im)*j..(im)*(j+1)-1]
+      end
+    else   # jm == 1
+      if im > 1
+        tmp3 = NArray.sfloat( im )
+        tmp3[0..-1] = tmp2[0..-1]
+      else # im == 1
+        tmp3 = tmp2
+      end
+    end
+    return tmp3
+  end # def bread_real
+  
+  def bread_double( fu, im=1, jm=1 )
+    tmp = fu.read( 8 * im * jm )
+    tmp2 = tmp.unpack( "G*" ) # double precision, big endian
+    if jm > 1
+      tmp3 = narray.sfloat( im, jm )
+      for j in 0..jm-1
+        tmp3[0..-1,j] = tmp2[(im)*j..(im)*(j+1)-1]
+      end
+    else   # jm == 1
+      if im > 1
+        tmp3 = NArray.sfloat( im )
+        tmp3[0..-1] = tmp2[0..-1]
+      else # im == 1
+        tmp3 = tmp2
+      end
+    end
+    return tmp3
+  end # def bread_double
+  
+=begin
+  def conv_arr1d_to_na( na_type, org_arr, im=1, jm=1) # , km=1, tm=1
+    na = sub_set_na( na_type, im, jm )
+    
+    return na
+  end
+  
+    def sub_set_na( na_type, im, jm )
+      case na_type
+        when "sfloat"
+          if jm > 1
+            na = NArray.sfloat( im, jm)
+          else
+            na = NArray.sfloat( im )
+          end
+        when "int"
+          if jm > 1
+            na = NArray.int( im, jm)
+          else
+            na = NArray.int( im )
+          end
+        else
+          puts "not match na_type: #{na_type}"
+          return false
+      end
+      return na
+    end # def sub_set_na
+=end
+## END: Binary read
 
 
 __END__
