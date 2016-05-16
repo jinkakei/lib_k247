@@ -23,6 +23,8 @@ class NumRu::GPhys
 		self.data.get_filename_k247 # added method for VArrayNetCDF
 	end
   
+  # 2016-05-11
+  #   chg_gphys_k247 do not work on hibiy04_fig7.rb
   # 2015-09-04
   # ToDo: import change grid
   def chg_gphys_k247( chg_hash )
@@ -229,10 +231,31 @@ end # class NumRu::VArrayNetCDF
   def exec_command( cmd )
     #print "\n"
     ret = system(cmd)
-    puts "#{ret} : #{cmd}"
+    puts "ruby info: ret = #{ret}\n  #{cmd}"
     #print "\n\n"
   end
 
+  def exe_with_log( cmd_org, log_fname )
+    exe_with_log_fg( cmd_org, log_fname )
+  end
+
+  def exe_with_log_fg( cmd_org, log_fname )
+    cmd_str = "#{cmd_org} 2>&1 | tee -a #{log_fname}" # foreground
+    exe_with_log_common( cmd_str, log_fname )
+  end
+
+  def exe_with_log_bg( cmd_org, log_fname )
+    cmd_str = "#{cmd_org} >> #{log_fname} 2>&1 &" # background
+    exe_with_log_common( cmd_str, log_fname )
+  end
+    
+  def exe_with_log_common( cmd_str, log_fname )
+    system( "echo \"command: #{cmd_str}\n\n\" > #{log_fname}" )
+    puts "ruby info: #{cmd_str}"
+    ret = system( cmd_str )
+    puts "ruby info: ret = #{ret}, logfile = #{log_fname}"
+  end
+    
   # ToDo: improve @ 2015-09-29
   def get_y_or_n( question=nil )
     print question
