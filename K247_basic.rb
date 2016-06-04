@@ -10,9 +10,9 @@ require "~/lib_k247/K247_basic_nodcl.rb"
 
 # index@2016-06-04
 ## 既存のクラスにメソッドを追加
-  class NumRu::GPhys
-  class NumRu::VArray
-  class NumRu::VArrayNetCDF
+#  class NumRu::GPhys
+#  class NumRu::VArray
+#  class NumRu::VArrayNetCDF
 ##  NArray operator
 
 
@@ -327,3 +327,5 @@ end # class NumRu::VArrayNetCDF
 
 
 __END__
+
+
