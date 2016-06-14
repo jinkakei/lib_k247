@@ -3,6 +3,7 @@
 #index@2016-06-04
 ##  General methods
 ##  Array
+##  Physical Oceanography
 
 
 
@@ -156,3 +157,298 @@ def ary_get_include_index( ary, kwd )
 end
 
 ## END: Array
+
+
+
+## Physical Oceanography
+
+  # 2014-12-27: create
+  # 2016-06-13: copy
+	# input：in-situ temperature [deg C]、practical salinity []、in-situ pressure [dbar] 
+	#	-> #calc_potential_temperature( input )
+	#		@tarr, @sarr, @parr
+	#	calc_ptemp_for_NArray ( wrapper of calc_potential_temperature )
+	#	variable: reference pressure( pref ), default is 0 [dbar]
+	# output：potential temperature
+	# formulation：UNESCO 1983 -- http://ocean.jfe-advantech.co.jp/sensor/img/density.pdf
+	class K247_calc_ptemp_SetVar
+		
+	  # initialize
+		def initialize
+		  # input for array
+			@tarr = nil
+			@sarr = nil
+			@parr = nil
+		  # variable
+			@pref = 0 # dbar
+		  # 
+			@t_fac = 1.00024
+		  # for gamma
+			@a0 =  3.5803 * 10.0**-5.0
+			@a1 =  8.5258 * 10.0**-6.0
+			@a2 = -6.8360 * 10.0**-8.0
+			@a3 =  6.6228 * 10.0**-10.0
+			@b0 =  1.8932 * 10.0**-6.0
+			@b1 = -4.2393 * 10.0**-8.0
+			@c0 =  1.8741 * 10.0**-8.0
+			@c1 = -6.7795 * 10.0**-10.0
+			@c2 =  8.7330 * 10.0**-12.0
+			@c3 = -5.4481 * 10.0**-14.0
+			@d0 = -1.1351 * 10.0**-10.0
+			@d1 =  2.7759 * 10.0**-12.0
+			@e0 = -4.6206 * 10.0**-13.0
+			@e1 =  1.8676 * 10.0**-14.0
+			@e2 = -2.1687 * 10.0**-16.0
+		end # def initialize
+		
+		attr_accessor :pref
+		attr_accessor :tarr
+		attr_accessor :sarr
+		attr_accessor :parr
+	end # class K247_calc_ptemp_SetVar
+	
+  # 2016-06-13: modify
+  # 2014-12-27: create
+	# ToDo: simplify
+	#	theta = K247_calc_ptemp.new
+	#	  theta.tarr = ctemp; theta.sarr = cpsal; theta.parr = cpres
+	#	  theta_arr = theta.calc_ptemp_for_NArray()
+	#		theta_arr[cmerged_inval_index] = rmiss00
+	#		theta_arr = NArrayMiss.to_nam( theta_arr, ctemp.get_mask)
+	class K247_calc_ptemp < K247_calc_ptemp_SetVar
+		
+	  # initialize
+		def initialize(  )
+			super # 
+		end # def initialize()
+		
+		
+	  # 2014-12-27
+		# ToDo: check shapes of @tarr, @sarr, @parr
+		# ToDo: sophisticate
+		# 2014-12-28
+		#	[suspend] use NArrayMiss?
+		#		NArrayMiss.to_nam(array ,mask) ?
+		#			ex. theta = NArrayMiss.to_nam( theta0 , temp_arr.get_mask)
+		def calc_ptemp_for_NArray()
+			n_dim = @tarr.dim
+			n_shape = @tarr.shape
+			
+			if (n_dim == 1) then
+				theta_arr = NArray.sfloat( n_shape[0] )
+				for n0 in 0..n_shape[0]-1
+					theta_arr[n0] = calc_potential_temperature( {'s'=>@sarr[n0], 't'=>@tarr[n0], 'p'=>@parr[n0]} )
+				#	p @sarr[n0], @tarr[n0], @parr[n0]
+				end # for n0 in 0..n_shape[0]-1
+			end # if (n_dim == 1) then
+			if (n_dim == 2) then
+				theta_arr = NArray.sfloat( n_shape[0], n_shape[1])
+				for n0 in 0..n_shape[0]-1
+				for n1 in 0..n_shape[1]-1
+					theta_arr[n0, n1] = calc_potential_temperature( {'s'=>@sarr[n0, n1], 't'=>@tarr[n0, n1], 'p'=>@parr[n0, n1]} )
+				#	p @sarr[n0], @tarr[n0], @parr[n0]
+				end # for n1 in 0..n_shape[1]-1
+				end # for n0 in 0..n_shape[0]-1
+			end # if (n_dim == 2) then
+			if (n_dim == 3) then
+				theta_arr = NArray.sfloat( n_shape[0], n_shape[1], n_shape[2])
+				for n0 in 0..n_shape[0]-1
+				for n1 in 0..n_shape[1]-1
+				for n2 in 0..n_shape[2]-1
+					theta_arr[n0, n1, n2] = calc_potential_temperature( {'s'=>@sarr[n0, n1, n2], 't'=>@tarr[n0, n1, n2], 'p'=>@parr[n0, n1, n2]} )
+				end # for n2 in 0..n_shape[2]-1
+				end # for n1 in 0..n_shape[1]-1
+				end # for n0 in 0..n_shape[0]-1
+			end # if (n_dim == 3) then
+			if (n_dim == 4) then
+				theta_arr = NArray.sfloat( n_shape[0], n_shape[1], n_shape[2], n_shape[3])
+				for n0 in 0..n_shape[0]-1
+				for n1 in 0..n_shape[1]-1
+				for n2 in 0..n_shape[2]-1
+				for n3 in 0..n_shape[3]-1
+					theta_arr[n0, n1, n2, n3] = calc_potential_temperature( {'s'=>@sarr[n0, n1, n2, n3], 't'=>@tarr[n0, n1, n2, n3], 'p'=>@parr[n0, n1, n2, n3]} )
+				end # for n3 in 0..n_shape[3]-1
+				end # for n2 in 0..n_shape[2]-1
+				end # for n1 in 0..n_shape[1]-1
+				end # for n0 in 0..n_shape[0]-1
+			end # if (n_dim == 4) then
+			
+			return theta_arr
+		end # def calc_ptemp_for_NArray()
+		
+		
+		def calc_potential_temperature( input )
+			s0 = input['s'] # practical salinity []
+			p0 = input['p'] # in-situ pressure [dbar]
+			t0 = input['t'] # in-situ temperature [deg C]
+			
+			t = @t_fac * t0
+			h = @pref - p0
+			xk = h * calc_gamma(s0, t, p0)
+			t = t + 0.5 * xk
+			q = xk
+			p = p0 + 0.5 * h
+			xk = h * calc_gamma(s0, t, p)
+			t = t + 0.29289322 * ( xk - q )
+			q = 0.58578644 * xk + 0.121320344 * q
+			xk = h * calc_gamma(s0, t, p)
+			t = t + 1.707106781 * ( xk - q )
+			q = 3.414213562 * xk - 4.121320344 * q
+			p = p + 0.5 * h
+			xk = h * calc_gamma(s0, t, p)
+			theta = 0.99976 * ( t + (xk - 2.0 * q) / 6.0)
+			return theta
+		end # def calc_potential_temperature( input )
+		
+		def calc_gamma( s, t, p)
+			return \
+				( @a0 + @a1 * t + @a2 * t**2.0 + @a3 * t**3.0 \
+					+ (@b0 + @b1 * t) * (s - 35.0) \
+					+ (@c0 + @c1 * t + @c2 * t**2.0 + @c3 * t**3.0 + (@d0 + @d1 * t) * (s - 35.0) ) * p \
+					+ (@e0 + @e1 * t + @e2 * t**2.0) * p**2.0 )
+		end # def calc_gamma( s, t, p)
+		
+	end # class K247_calc_ptemp < K247_calc_ptemp_SetVar
+	
+	
+
+
+
+  # 2014-12-27
+	# input：potential temperature [deg C]、practical salinity []
+	#	-> @tharr, @sarr
+	# output: potential density
+	#
+	# Main: calc_rhoo_for_NArray ( wrapper of calc_rhoo  )
+	#
+	# formulatin：Data Assimilation sytem at Kyoto-University
+	#
+	class K247_calc_rhoo_SetVar
+		
+	  # initialize
+		def initialize
+		  # input for array
+			@tharr = nil
+			@sarr = nil
+			
+		  # constants
+			@a0 = 999.842594
+			@a1 =  6.793952 * 10.0**-2.0
+			@a2 = -9.095290 * 10.0**-3.0
+			@a3 =  1.001685 * 10.0**-4.0
+			@a4 = -1.120083 * 10.0**-6.0
+			@a5 =  6.536332 * 10.0**-9.0
+			@b0 =  0.824493*10.0**0.0
+			@b1 = -4.0899 * 10.0**-3.0
+			@b2 =  7.6438 * 10.0**-5.0
+			@b3 = -8.2467 * 10.0**-7.0
+			@b4 =  5.3875 * 10.0**-9.0
+			@b5 = -5.72466 * 10.0**-3.0
+			@b6 =  1.0227 * 10.0**-4.0
+			@b7 = -1.6546 * 10.0**-6.0
+			@b8 =  4.8314 * 10.0**-4.0
+		end # def initialize
+		
+		attr_accessor :tharr
+		attr_accessor :sarr
+	end # class K247_calc_rhoo_SetVar
+	
+	
+	
+  # 2016-06-14: modify
+  # 2014-12-27: create
+  # ToDo:
+  #   - error for missing value -999.99
+	#	rhoo = K247_calc_rhoo.new
+	#	  rhoo.tharr = theta_arr; rhoo.sarr = cpsal
+	#	  rhoo_arr = rhoo.calc_rhoo_for_NArray
+	#		rhoo_arr[cmerged_inval_index] = rmiss00
+	#		rhoo_arr = NArrayMiss.to_nam( rhoo_arr, ctemp.get_mask)
+	class K247_calc_rhoo < K247_calc_rhoo_SetVar
+		
+	  # initialize
+		def initialize(  )
+			super # 
+		end # def initialize()
+		
+		
+	  # 2014-12-27
+		# ToDo:
+		#	- check array size ( @tharr, @sarr )
+		#	- sophisticate
+		def calc_rhoo_for_NArray()
+			n_dim = @tharr.dim
+			n_shape = @tharr.shape
+			
+			if (n_dim == 1) then
+				rhoo_arr = NArray.sfloat( n_shape[0] )
+				for n0 in 0..n_shape[0]-1
+					rhoo_arr[n0] = calc_rhoo( {'s'=>@sarr[n0], 'theta0'=>@tharr[n0]} )
+				#	p @sarr[n0], @tharr[n0], @parr[n0]
+				end # for n0 in 0..n_shape[0]-1
+			end # if (n_dim == 1) then
+			if (n_dim == 2) then
+				rhoo_arr = NArray.sfloat( n_shape[0], n_shape[1])
+				for n0 in 0..n_shape[0]-1
+				for n1 in 0..n_shape[1]-1
+					rhoo_arr[n0, n1] = calc_rhoo( {'s'=>@sarr[n0, n1], 'theta0'=>@tharr[n0, n1]} )
+				#	p @sarr[n0], @tharr[n0], @parr[n0]
+				end # for n1 in 0..n_shape[1]-1
+				end # for n0 in 0..n_shape[0]-1
+			end # if (n_dim == 2) then
+			if (n_dim == 3) then
+				rhoo_arr = NArray.sfloat( n_shape[0], n_shape[1], n_shape[2])
+				for n0 in 0..n_shape[0]-1
+				for n1 in 0..n_shape[1]-1
+				for n2 in 0..n_shape[2]-1
+					rhoo_arr[n0, n1, n2] = calc_rhoo( {'s'=>@sarr[n0, n1, n2], 'theta0'=>@tharr[n0, n1, n2]} )
+				end # for n2 in 0..n_shape[2]-1
+				end # for n1 in 0..n_shape[1]-1
+				end # for n0 in 0..n_shape[0]-1
+			end # if (n_dim == 3) then
+			if (n_dim == 4) then
+				rhoo_arr = NArray.sfloat( n_shape[0], n_shape[1], n_shape[2], n_shape[3])
+				for n0 in 0..n_shape[0]-1
+				for n1 in 0..n_shape[1]-1
+				for n2 in 0..n_shape[2]-1
+				for n3 in 0..n_shape[3]-1
+					rhoo_arr[n0, n1, n2, n3] = calc_rhoo( {'s'=>@sarr[n0, n1, n2, n3], 'theta0'=>@tharr[n0, n1, n2, n3]} )
+				end # for n3 in 0..n_shape[3]-1
+				end # for n2 in 0..n_shape[2]-1
+				end # for n1 in 0..n_shape[1]-1
+				end # for n0 in 0..n_shape[0]-1
+			end # if (n_dim == 4) then
+			
+			return rhoo_arr
+		end # def calc_ptemp_for_NArray()
+		
+		
+	  # 2014-12-27: 
+		def calc_rhoo( input )
+			s = input['s'] # practical salinity []
+			th = input['theta0'] # potential temperature [deg C] at 0 dabar
+			
+		  # K247_DASys_Calc_rhoo
+			sroot = s**0.5
+			rhoo = ( @a0 \
+				+ th *( @a1 + th * ( @a2 + th * ( @a3 + th *( @a4 + @a5 * th )))) \
+				+ s *( ( @b0 + th *( @b1+ th * ( @b2 + th * ( @b3 + @b4 * th )))) \
+					+ sroot * ( @b5 + th * ( @b6 + @b7 * th ) ) + @b8 * s ) \
+				- 1000.0 )  # σ
+				
+			#rhoo = ( 999.842594 \
+			#	+ t*(6.793952*10.0**2 + t*(-9.095290*10.0**3	  \
+			#		+ t*(1.001685*10.0**4 + t*(-1.120083*10.0**6	\
+			#		+ 6.536332*10.0**9*t))))					\
+			#	+ s*( (0.824493*10.0**0 + t*(-4.0899*10.0**3	  \
+			#		+ t*(7.6438*10.0**5 + t*(-8.2467*10.0**7		\
+			#		+ 5.3875*10.0**9*t)))) + sroot*(-5.72466*10.0**3 \
+			#		+ t*(1.0227*10.0**4 - 1.6546*10.0**6*t))		\
+			#		+ 4.8314*10.0**4*s) \
+			#	- 1000.0 )  # σ
+				  
+			return rhoo
+		end # def calc_potential_temperature( input )
+		
+	end # class K247_calc_ptemp < K247_calc_ptemp_SetVar
+## End: Physical Oceanography
