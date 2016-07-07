@@ -13,6 +13,7 @@ require "~/lib_k247/K247_basic_nodcl.rb"
 #  class NumRu::GPhys
 #  class NumRu::VArray
 #  class NumRu::VArrayNetCDF
+#  class NumRu::NArrayMiss
 ##  NArray operator
 
 
@@ -197,8 +198,23 @@ class NumRu::VArrayNetCDF
 	
 	
 end # class NumRu::VArrayNetCDF
-	
-	
+
+
+def namiss_get_masked_value_k247( namiss )
+	return namiss[ namiss.get_mask.eq(0).where[0] ]
+end
+# Error for NArrayNetCDF
+#class NumRu::NArrayMiss
+#  def get_masked_value_k247
+#    self.get_mask
+#  end
+#end #  class NumRu::NArrayMiss
+#/usr/lib/ruby/vendor_ruby/numru/netcdf_miss.rb:39:in `get_with_miss_and_scaling': undefined method `to_nam' for NumRu::NArrayMiss:Class (NoMethodError)
+#	from /usr/lib/ruby/vendor_ruby/numru/gphys/varraynetcdf.rb:261:in `val'
+#	from /usr/lib/ruby/vendor_ruby/numru/gphys/gphys.rb:604:in `val'
+#	from get_bcuvel.rb:23:in `<main>'	
+
+
 ## END: 既存のクラスにメソッドを追加
 
 
