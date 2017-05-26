@@ -3,6 +3,7 @@
 #index@2016-06-04
 ##  General methods
 ##  Array
+##  Add method
 ##  Physical Oceanography
 
 
@@ -141,6 +142,13 @@ puts "Hello!"
   def time_now_str_sec
     return Time.now.strftime("%Y%m%d_%H%M_%S")
   end
+
+
+  def system_k247( cmd_str )
+    puts(   cmd_str )
+    system( cmd_str )
+  end
+
 ##  END: General methods
 
 
@@ -157,6 +165,22 @@ def ary_get_include_index( ary, kwd )
 end
 
 ## END: Array
+
+
+
+
+## Add method
+class Float
+  # 2016-11-11
+  def to_s_k247( dig = 1 )
+    lnum = log10( self ).to_i
+    head = self / ( 10.0**lnum )
+    ret = head.round( dig ).to_s + "d" + lnum.to_s
+  end
+end
+
+## END:  Add method
+
 
 
 

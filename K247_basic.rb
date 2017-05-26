@@ -7,6 +7,10 @@ require "numru/dcl"
 include NumRu
 require "~/lib_k247/K247_basic_nodcl.rb"
 
+# 2017-02-08: copy for nonhydro_akitomo
+  # ~/lib_k247/K247_basic.rb 
+  # -> ~/nonhydro_akitomo/ana/lib_k247_basic.rb
+
 
 # index@2016-06-04
 ## 既存のクラスにメソッドを追加
@@ -15,6 +19,7 @@ require "~/lib_k247/K247_basic_nodcl.rb"
 #  class NumRu::VArrayNetCDF
 #  class NumRu::NArrayMiss
 ##  NArray operator
+##  Binary read
 
 
 
@@ -203,30 +208,119 @@ end # class NumRu::VArrayNetCDF
 def namiss_get_masked_value_k247( namiss )
 	return namiss[ namiss.get_mask.eq(0).where[0] ]
 end
-# Error for NArrayNetCDF
+  # for GPhys
+  #  vmiss = gphys_v.get_att( "missing_value" )[0]
+  #
+# ??? Cannot add methods to NArrayMiss?
 #class NumRu::NArrayMiss
-#  def get_masked_value_k247
-#    self.get_mask
+#  #def get_masked_value_k247
+#  def get_vmiss_K247
+#  #  self.get_mask
 #  end
 #end #  class NumRu::NArrayMiss
+# Error for NArrayNetCDF
 #/usr/lib/ruby/vendor_ruby/numru/netcdf_miss.rb:39:in `get_with_miss_and_scaling': undefined method `to_nam' for NumRu::NArrayMiss:Class (NoMethodError)
 #	from /usr/lib/ruby/vendor_ruby/numru/gphys/varraynetcdf.rb:261:in `val'
 #	from /usr/lib/ruby/vendor_ruby/numru/gphys/gphys.rb:604:in `val'
 #	from get_bcuvel.rb:23:in `<main>'	
 
 
+
+
+# 2016-11-11
+class Float
+  def to_s_k247( dig = 1 )
+    if self != 0.0
+      lnum = log10( self.abs ).to_i
+    else
+      lnum = 0
+    end
+    head = self / ( 10.0**lnum )
+    ret = head.round( dig ).to_s + "d" + lnum.to_s
+  end
+end
+
 ## END: 既存のクラスにメソッドを追加
 
 
 
 ## methods by K247
-
+##  DCL
 ##  NArray operator
 ##  Array
-##  binary read
+##  Binary read
 
 
-
+##  DCL
+  def gropn_k247( op )
+  # !not complete! @ 2017-03-27
+    # 2017-05-04: op = 1 or 0
+    # 
+    DCL.sgscmn( 4 ) # blue-cyan-white-yellow-red
+    #DCL.sgscmn( 14 ) # blue-white-red ( lighter than 4 )
+    #DCL.sgscmn( 10 ) # default ( short green )
+    DCL.gropn( op ) # 1: display, 2: pdf
+      DCL.glpset( 'lmiss', true ) # skip missing 
+      DCL.sgpset( "lclip", true ) # cut run over
+    # display as gpview
+      GGraph.set_fig( 'viewport' => [0.15, 0.85, 0.2 , 0.55] )
+      DCL.sgpset( 'lcntl', false )
+      DCL.uzfact( 0.7 )            # set font size
+      DCL.sgpset( 'lfull' , true ) # use full are in the window
+      DCL.sgpset( 'lfprop', true ) # use proportional font
+      DCL.uscset( 'cyspos', 'B'  ) # move unit y axis
+  end # gropn_k247
+    # log
+      # to fill exceed value
+        #DCL::glrset( "RMISS", vmiss ) # to fill exceed value
+        # preperation
+        #  vmiss = gphys_v.get_att( "missing_value" )[0]
+        #  tlev  = tlev0[ 0..-1].to_a
+        #  tlev.unshift( vmiss ) 
+        #  tlev.push(    vmiss )
+      # set_axes
+        # set detailed memori-uchi
+        #  GGraph.set_axes( "xlabelint" => 0.2, "xtickint" => 0.1 )
+        #  GGraph.set_axes( "ylabelint" => 0.2, "ytickint" => 0.1 )
+        # delete axes units  
+        #  GGraph.set_axes( "yunits" => "" ) # delete axes units
+        #  GGraph.set_axes( "xunits" => "" ) # delete axes units
+        # no axis  
+        #  GGraph.set_axes( "xside" => "tb" ) # deault
+        #  GGraph.set_axes( "xside" =>  "b" ) # plot only bottom axis
+        #  GGraph.set_axes( "yside" => "lr" ) # deault
+        #  GGraph.set_axes( "yside" =>  "l" ) # plot only left  axis
+        # 1420 (x.1 degE) -> 142.1 (degE)
+        #  DCL.uspset( "mxdgty", 5 ) # max digit number of Y-axis
+        #  DCL.uspset( "mxdgtx", 5 ) # max digit number of X-axis
+      # write 2nd Axis
+      # ( on bottom )
+        #  DCL.uzlset( "LOFFSET", true) # for add second axes
+        #  DCL::uxsaxs( 'B' )
+        #  DCL::uzrset( "XFACT", 86.1 ) # 1 deg E -> km in 39.3 N
+        #  DCL::uzrset( "XOFFSET", -142.0 * 86.1 - 11 )
+        #  DCL::uxaxdv( "B", 2, 10 ) 
+        #  DCL::uxsttl( "B", "x [km]", 0.0 )
+      #
+      # erase message ( contour interval = .. )
+      #  DCL.udpset( 'lmsg', false ) 
+      # color bar
+      #  GGraph.color_bar( "vcent" => cb_h, "units" => "[cm/s]", \
+      #                    "vlength" => cb_l )
+      #  # "v*": in V-Coordinate
+      #    yoko color-bar
+      #       "landscape" => true
+      #       "top" => true ( set on top, default: bottom)
+      #    tate color-bar ( default)
+      #       "portrait" => true
+      #       "left" => true ( set on left, default: right)
+      #
+      #
+      #DCL.sgpset( 'lcntl', true )
+         # erase contour label -> not work
+         # set "label" => false in GGraph.contour option
+  #
+  #
 ##  NArray operator
 
   # 2015-09-12: create
@@ -244,8 +338,8 @@ end
 
 
 
-## Binary read
-## for binary read ( bread_* )
+##  Binary read
+##    for binary read ( bread_* )
 # ToDo
 #   - cut NArray? ( ex. bread_int < bread_int_noNArray )
 #   - kill duplication by "conv_arr1d_to_na"
@@ -339,7 +433,8 @@ end
       return na
     end # def sub_set_na
 =end
-## end: binary read
+##  end: Binary read
+
 
 
 __END__
